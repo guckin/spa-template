@@ -5,8 +5,6 @@ import { TestAppStack } from './app-stack';
 
 const app = new cdk.App();
 new TestAppStack(app, 'TestAppStack', {
-  env: {
-    region: 'us-west-2',
-    account: '084882962555'
-  },
+  env: { account: process.env['CDK_DEFAULT_ACCOUNT'], region: process.env['CDK_DEFAULT_REGION']},
+  domainName: 'example.com'
 });

@@ -1,5 +1,4 @@
-import * as cdk from 'aws-cdk-lib';
-import { Duration, RemovalPolicy } from 'aws-cdk-lib';
+import { Duration, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
 import { DnsValidatedCertificate } from 'aws-cdk-lib/aws-certificatemanager';
 import { CachePolicy, Distribution } from 'aws-cdk-lib/aws-cloudfront';
 import { S3Origin } from 'aws-cdk-lib/aws-cloudfront-origins';
@@ -10,47 +9,48 @@ import { BucketDeployment, Source } from 'aws-cdk-lib/aws-s3-deployment';
 import { Construct } from 'constructs';
 import * as path from 'path';
 
-export class TestAppStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
-    super(scope, id, props);
+export type TestAppConfig = StackProps & {domainName: string};
 
-    const bucket = new Bucket(this, 'HelpflSPABucket', {
+export class TestAppStack extends Stack {
+  constructor(scope: Construct, id: string, props: TestAppConfig) {
+    super(scope, id, props);
+    const domainName = props.domainName;
+
+    const bucket = new Bucket(this, 'TemplateSPABucket', {
         publicReadAccess: true,
         removalPolicy: RemovalPolicy.DESTROY,
         websiteIndexDocument: 'index.html',
         websiteErrorDocument: 'index.html'
     });
 
-    const deployment = new BucketDeployment(this, "HelpflSPADeployment", {
+    const deployment = new BucketDeployment(this, "TemplateSPADeployment", {
         sources: [
             Source.asset('./dist/ui')
         ],
         destinationBucket: bucket
     });
 
-    const domainName = 'helpfl.click';
+    const hostedZone = HostedZone.fromLookup(this, 'TemplateHostedZone', { domainName });
 
-    const hostedZone = HostedZone.fromLookup(this, 'HostedZone', { domainName });
-
-    const certificate = new DnsValidatedCertificate(this, 'HelpflCert', {
+    const certificate = new DnsValidatedCertificate(this, 'TemplateCert', {
         domainName,
         hostedZone,
         region: 'us-east-1'
     });
 
-    const distribution = new Distribution(this, 'HelpflDistribution', {
+    const distribution = new Distribution(this, 'TemplateDistribution', {
         defaultRootObject: 'index.html',
         domainNames: [domainName],
         certificate: certificate,
         defaultBehavior: {
-            cachePolicy: new CachePolicy(this, 'HelpflCacheing', {
+            cachePolicy: new CachePolicy(this, 'TemplateCacheing', {
                 defaultTtl: Duration.minutes(1)
             }),
             origin: new S3Origin(bucket),
         },
     });
 
-    new ARecord(this, 'ARecord', {
+    new ARecord(this, 'TemplateARecord', {
         zone: hostedZone,
         target: RecordTarget.fromAlias(new CloudFrontTarget(distribution)),
         ttl: Duration.minutes(1),
